@@ -2,5 +2,7 @@
 name = "publish-demo3334"
 version = "0.1.0"
 edition = "2024"
+description = "demo"
+license = "MIT"
 
 [dependencies]
