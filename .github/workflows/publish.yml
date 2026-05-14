@@ -2,7 +2,7 @@ name: Test and Publish
 
 on:
   push:
-    branches: 
+    branches:
       - "master"
       - "branch*"
   pull_request:
@@ -13,9 +13,15 @@ jobs:
   publish:
     runs-on: ubuntu-latest
 
-    name: 'publish'
+    name: "publish"
 
     environment: cargo
+
+    permissions:
+      contents: write
+
+    env:
+      TAG_PREFIX: v
 
     steps:
       - uses: actions/checkout@v3
@@ -30,14 +36,37 @@ jobs:
         uses: Swatinem/rust-cache@v1
         with:
           key: ${{ runner.os }}-build-v0.2.2
-      
+
       - name: Show cargo info
         run: cargo version --verbose
-      
+
       - name: Run publish-action of oss
-        uses: tu6ge/publish-action@v0.4.13
+        id: publish
+        uses: tu6ge/publish-action@v0.5.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        with:
+          DIR: "/"
+          TAG_PREFIX: ${{ env.TAG_PREFIX }}
 
- 
+      - name: Generate changelog (git-cliff)
+        if: github.event_name != 'pull_request' && steps.publish.outputs.publish == 'true'
+        id: git-cliff
+        uses: orhun/git-cliff-action@v4
+        with:
+          args: -vv --latest --strip header
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          OUTPUT: RELEASE_NOTES.md
+          GITHUB_REPO: ${{ github.repository }}
+
+      - name: Create GitHub Release
+        if: github.event_name != 'pull_request' && steps.publish.outputs.publish == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_PREFIX }}${{ steps.publish.outputs.new_version_value }}
+          name: ${{ env.TAG_PREFIX }}${{ steps.publish.outputs.new_version_value }}
+          body_path: ${{ steps.git-cliff.outputs.changelog }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
