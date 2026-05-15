@@ -6,3 +6,4 @@ description = "demo"
 license = "MIT"
 
 [dependencies]
+gpui = "0.2.2"
